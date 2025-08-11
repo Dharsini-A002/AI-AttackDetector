@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI-Adaptive Honeypot Dashboard</title>
+    <!-- Suppress favicon request -->
+    <link rel="icon" href="data:;base64,iVBORw0KGgo=">
+    <!-- CDN links -->
+    <script src="https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.development.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/react-dom@18.3.1/umd/react-dom.development.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.25.6/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/socket.io-client@4.7.5/dist/socket.io.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        #pieChartContainer { max-width: 400px; margin: 0 auto; }
+    </style>
+</head>
+<body>
+    <div id="root">
+        <p>Loading AI-Adaptive Honeypot Dashboard...</p>
+    </div>
+
+    <script>
+        // Verify all CDNs loaded
+        if (typeof React === 'undefined') {
+            console.error('React failed to load. Check the CDN link: https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.development.js');
+            document.getElementById('root').innerHTML = '<p style="color: red;">Error: React failed to load. Check the console for details.</p>';
+        }
+        if (typeof ReactDOM === 'undefined') {
+            console.error('ReactDOM failed to load. Check the CDN link: https://cdn.jsdelivr.net/npm/react-dom@18.3.1/umd/react-dom.development.js');
+            document.getElementById('root').innerHTML = '<p style="color: red;">Error: ReactDOM failed to load. Check the console for details.</p>';
+        }
+        if (typeof Babel === 'undefined') {
+            console.error('Babel failed to load. Check the CDN link: https://cdn.jsdelivr.net/npm/@babel/standalone@7.25.6/babel.min.js');
+            document.getElementById('root').innerHTML = '<p style="color: red;">Error: Babel failed to load. Check the console for details.</p>';
+        }
+        if (typeof Chart === 'undefined') {
+            console.error('Chart.js failed to load. Check the CDN link: https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js');
+            document.getElementById('root').innerHTML = '<p style="color: red;">Error: Chart.js failed to load. Check the console for details.</p>';
+        }
+        if (typeof io === 'undefined') {
+            console.error('Socket.IO client failed to load. Check the CDN link: https://cdn.jsdelivr.net/npm/socket.io-client@4.7.5/dist/socket.io.min.js');
+            document.getElementById('root').innerHTML = '<p style="color: red;">Error: Socket.IO client failed to load. Check the console for details.</p>';
+        }
+    </script>
+
+    <script type="text/babel">
+        console.log('Starting React app...');
+
+        // React Component for the Honeypot Dashboard
+        const HoneypotDashboard = () => {
+            console.log('Rendering HoneypotDashboard component...');
+            
+            const [detections, setDetections] = React.useState([]);
+            const [chartData, setChartData] = React.useState({ 
+                labels: ['Normal', 'Malicious'], 
+                datasets: [{ data: [1, 1], backgroundColor: ['#4CAF50', '#FF4444'] }]
+            });
+            const attackTypes = {
+                0: "normal", 1: "generic", 2: "fuzzers", 3: "Exploits", 4: "Dos",
+                5: "Reconnaissance", 6: "Backdoor", 7: "Analysis", 8: "Shellcode", 9: "Worms"
+            };
+
+            // Connect to WebSocket
+            React.useEffect(() => {
+                console.log('Setting up WebSocket and API fetch...');
+                const socket = io('http://localhost:5000', { 
+                    transports: ['polling'],
+                    reconnection: true,
+                    reconnectionAttempts: 5,
+                    reconnectionDelay: 1000
+                });
+
+                socket.on('connect', () => {
+                    console.log('Socket.IO connected with transport:', socket.io.engine.transport.name);
+                });
+                socket.on('connect_error', (error) => {
+                    console.error('Socket.IO connection failed:', error);
+                });
+                socket.on('reconnect', (attempt) => {
+                    console.log('Socket.IO reconnected after', attempt, 'attempts');
+                });
+                socket.on('reconnect_failed', () => {
+                    console.error('Socket.IO reconnection failed after maximum attempts');
+                });
+
+                fetch('http://localhost:5000/api/detections')
+                    .then(response => {
+                        if (!response.ok) throw new Error('Failed to fetch detections');
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log('Initial detections:', data);
+                        setDetections(data);
+                        updateChart(data);
+                    })
+                    .catch(error => {
+                        console.error('Error fetching detections:', error);
+                    });
+
+                socket.on('new_detection', (detection) => {
+                    console.log('New detection received:', detection); // Added debug log
+                    setDetections(prev => {
+                        const newDetections = [...prev, detection];
+                        if (newDetections.length > 100) newDetections.shift();
+                        updateChart(newDetections);
+                        return newDetections;
+                    });
+                });
+
+                return () => {
+                    socket.disconnect();
+                    console.log('Socket.IO disconnected');
+                };
+            }, []);
+
+            const updateChart = (data) => {
+                console.log('Updating chart with data:', data);
+                const normalCount = data.filter(d => d.predicted_class === 0).length;
+                const maliciousCount = data.length - normalCount;
+                setChartData({
+                    labels: ['Normal', 'Malicious'],
+                    datasets: [{
+                        data: [normalCount || 1, maliciousCount || 1],
+                        backgroundColor: ['#4CAF50', '#FF4444']
+                    }]
+                });
+            };
+
+            const chartRef = React.useRef(null);
+            React.useEffect(() => {
+                console.log('Initializing Chart.js...');
+                if (chartRef.current && typeof chartRef.current.destroy === 'function') {
+                    chartRef.current.destroy();
+                    chartRef.current = null;
+                }
+                const canvas = document.getElementById('pieChartCanvas');
+                if (canvas) {
+                    const ctx = canvas.getContext('2d');
+                    if (ctx) {
+                        chartRef.current = new Chart(ctx, {
+                            type: 'pie',
+                            data: chartData,
+                            options: {
+                                responsive: true,
+                                plugins: {
+                                    legend: { position: 'top' },
+                                    title: { display: true, text: 'Normal vs Malicious Traffic' }
+                                }
+                            }
+                        });
+                    } else {
+                        console.error('Failed to get 2D context for pie chart canvas');
+                    }
+                } else {
+                    console.error('Pie chart canvas element not found');
+                }
+
+                return () => {
+                    if (chartRef.current && typeof chartRef.current.destroy === 'function') {
+                        chartRef.current.destroy();
+                        chartRef.current = null;
+                        console.log('Chart.js instance destroyed');
+                    }
+                };
+            }, [chartData]);
+
+            return (
+                <div className="container mx-auto p-4">
+                    <h1 className="text-3xl font-bold mb-4">AI-Adaptive Honeypot Dashboard</h1>
+                    <p className="text-gray-600 mb-4">Real-time attack detections from the honeypot.</p>
+                    <div className="overflow-x-auto mb-6">
+                        <table className="min-w-full bg-white border border-gray-300">
+                            <thead>
+                                <tr className="bg-gray-100">
+                                    <th className="py-2 px-4 border-b">Timestamp</th>
+                                    <th className="py-2 px-4 border-b">IP Address</th>
+                                    <th className="py-2 px-4 border-b">Detected Attack</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {detections.map((detection, index) => (
+                                    <tr key={index} className="hover:bg-gray-50">
+                                        <td className="py-2 px-4 border-b">{detection.timestamp}</td>
+                                        <td className="py-2 px-4 border-b">{detection.ip_address}</td>
+                                        <td className="py-2 px-4 border-b">{attackTypes[detection.predicted_class]}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="pieChartContainer" className="mt-6">
+                        <canvas id="pieChartCanvas"></canvas>
+                    </div>
+                </div>
+            );
+        };
+
+        console.log('Rendering React app...');
+        try {
+            const root = ReactDOM.createRoot(document.getElementById('root'));
+            root.render(<HoneypotDashboard />);
+            console.log('React app rendered successfully');
+        } catch (error) {
+            console.error('Failed to render React app:', error);
+            document.getElementById('root').innerHTML = '<p style="color: red;">Error: Failed to load the dashboard. Check the console for details.</p>';
+        }
+    </script>
+</body>
+</html>
