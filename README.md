@@ -1,4 +1,5 @@
 Network Intrusion Detection //
+
 This repository contains a Python-based Detector server (Detector.py) designed to monitor network traffic, detect intrusions using a pre-trained Keras deep learning model, and display real-time detections on a web dashboard. The system captures network packets using Scapy, processes them to extract features, predicts attack types (e.g., normal, exploits, DoS) using a neural network, and logs connections to a simulated Detector service. The dashboard, powered by Flask and SocketIO, shows the latest detections and updates in real-time via WebSockets.
 Features
 
