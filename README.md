@@ -171,7 +171,7 @@ Check console output for missing columns in extract_features.
 
 Notes
 
-Network Interface: The default interface is \Device\NPF_Loopback, which may not capture external traffic. Update to your Wi-Fi interface (e.g., \Device\NPF_{8852DE73-62AC-4CCC-9780-975BD8AD3673}) for real-world use.
+Network Interface: The default interface is \Device\NPF_Loopback, which may not capture external traffic. Update to your Wi-Fi interface (e.g., \Device\NPF_{xxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx}) for real-world use.
 Attack Types: The model classifies packets into 10 classes: normal, generic, fuzzers, exploits, DoS, reconaissance, backdoor, analysis, shellcode, worms.
 Performance: The system limits in-memory detections to 100 to optimize performance.
 Security: This is a demo honeypot. For production, secure Flask and SocketIO (e.g., use HTTPS, authentication).
